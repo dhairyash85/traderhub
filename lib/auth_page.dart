@@ -102,14 +102,8 @@ class AuthPageState extends State<AuthPage> {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              const Color(0xFF1E3A8A),
-              const Color(0xFF1E3A8A).withOpacity(0.8),
-            ],
-          ),
+          color: const Color(0xFF1E3A8A),
+         
         ),
         child: SafeArea(
           child: Card(

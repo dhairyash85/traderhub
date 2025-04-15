@@ -66,7 +66,12 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
         appBar: AppBar(
-          title: const Text("Profile"),
+          title: const Text(
+            "Profile",
+            style: TextStyle(
+              color: Colors.white
+            ),
+          ),
           actions: [
             IconButton(
               icon: const Icon(Icons.add_box_outlined),
@@ -76,6 +81,7 @@ class _ProfilePageState extends State<ProfilePage> {
             // In the AppBar actions, add this before the logout button:
             IconButton(
               icon: const Icon(Icons.swap_horiz),
+              color: Colors.white,
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -84,6 +90,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             IconButton(
               icon: const Icon(Icons.logout),
+              color: Colors.white,
               onPressed: () {
                 _authService.signOut().then((_) {
                   Navigator.pushReplacementNamed(context, '/auth');

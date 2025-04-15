@@ -294,7 +294,7 @@ class _HomePageState extends State<HomePage> {
           return Builder(
             builder: (BuildContext context) {
               return Container(
-                width: MediaQuery.of(context).size.width,
+                // width: MediaQuery.of(context).size.width,
                 margin: const EdgeInsets.symmetric(horizontal: 5.0),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -313,7 +313,7 @@ class _HomePageState extends State<HomePage> {
                     Positioned(
                       child: Icon(
                         fact['icon'],
-                        size: 180,
+                        size: 160,
                         color: Colors.white.withOpacity(0.2),
                       ),
                     ),
@@ -334,7 +334,7 @@ class _HomePageState extends State<HomePage> {
                             fact['title'],
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -600,16 +600,16 @@ class _HomePageState extends State<HomePage> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        // const SizedBox(height: 4),
                         Text(
                           "₹${item['original_cost'] ?? '0'}",
                           style: const TextStyle(
                             color: Color(0xFF1E3A8A),
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 3),
                         Row(
                           children: [
                             const Icon(
