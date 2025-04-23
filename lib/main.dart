@@ -3,10 +3,13 @@ import 'package:traderhub/main_screen.dart';
 import 'package:traderhub/profile_page.dart';
 import 'package:traderhub/your_requests_page.dart';
 import 'home_page.dart';
+import "chat_list_page.dart";
+import "chat_page.dart";
 import 'auth_page.dart';
 import 'post_item_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -56,7 +59,8 @@ class BarterApp extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: Color(0xFF1E3A8A), width: 2),
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
         cardTheme: CardTheme(
           elevation: 2,
@@ -68,12 +72,24 @@ class BarterApp extends StatelessWidget {
       ),
       initialRoute: '/auth',
       // In your routes map
+      // In your lib/main.dart, update the routes map
       routes: {
         '/auth': (context) => const AuthPage(),
         '/main': (context) => const MainScreen(),
         '/post-item': (context) => const PostItemPage(),
-        // Add this to your routes map
         '/requests': (context) => const YourRequestsPage(),
+        '/chat-list': (context) => const ChatListPage(),
+        '/chat': (context) => ChatPage(
+              chatRoomId: (ModalRoute.of(context)?.settings.arguments
+                      as Map<String, dynamic>)['chatRoomId'] ??
+                  '',
+              otherUserId: (ModalRoute.of(context)?.settings.arguments
+                      as Map<String, dynamic>)['userId'] ??
+                  '',
+              otherUserName: (ModalRoute.of(context)?.settings.arguments
+                      as Map<String, dynamic>)['userName'] ??
+                  'User',
+            ),
       },
     );
   }
