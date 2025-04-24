@@ -66,149 +66,415 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
           itemCount: requests.length,
           itemBuilder: (context, index) {
             final request = requests[index].data() as Map<String, dynamic>;
+            final String offerType = request['offerType'] ?? 'item';
             
-            return FutureBuilder<List<DocumentSnapshot>>(
-              future: Future.wait([
-                _firestore.collection('items').doc(request['offeredItemId']).get(),
-                _firestore.collection('items').doc(request['requestedItemId']).get(),
-                _firestore.collection('users').doc(incoming ? request['senderId'] : request['receiverId']).get(),
-              ]),
-              builder: (context, snapshots) {
-                if (!snapshots.hasData) {
-                  return const Card(
-                    margin: EdgeInsets.all(8),
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
+            // For money offers, we don't need to fetch the offered item
+            if (offerType == 'money') {
+              return FutureBuilder<List<DocumentSnapshot>>(
+                future: Future.wait([
+                  _firestore.collection('items').doc(request['requestedItemId']).get(),
+                  _firestore.collection('users').doc(incoming ? request['senderId'] : request['receiverId']).get(),
+                ]),
+                builder: (context, snapshots) {
+                  if (!snapshots.hasData) {
+                    return const Card(
+                      margin: EdgeInsets.all(8),
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
+                  }
+
+                  final requestedItem = snapshots.data![0].data() as Map<String, dynamic>?;
+                  final otherUser = snapshots.data![1].data() as Map<String, dynamic>?;
+
+                  if (requestedItem == null || otherUser == null) {
+                    return const Card(
+                      margin: EdgeInsets.all(8),
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Item or user not found'),
+                      ),
+                    );
+                  }
+
+                  return _buildMoneyOfferCard(
+                    request: request,
+                    requestId: requests[index].id,
+                    requestedItem: requestedItem,
+                    otherUser: otherUser,
+                    incoming: incoming,
                   );
-                }
+                },
+              );
+            }
+            // For item or combined offers, we need to fetch both items
+            else {
+              return FutureBuilder<List<DocumentSnapshot>>(
+                future: Future.wait([
+                  _firestore.collection('items').doc(request['offeredItemId']).get(),
+                  _firestore.collection('items').doc(request['requestedItemId']).get(),
+                  _firestore.collection('users').doc(incoming ? request['senderId'] : request['receiverId']).get(),
+                ]),
+                builder: (context, snapshots) {
+                  if (!snapshots.hasData) {
+                    return const Card(
+                      margin: EdgeInsets.all(8),
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
+                  }
 
-                final offeredItem = snapshots.data![0].data() as Map<String, dynamic>;
-                final requestedItem = snapshots.data![1].data() as Map<String, dynamic>;
-                final otherUser = snapshots.data![2].data() as Map<String, dynamic>;
+                  final offeredItem = snapshots.data![0].data() as Map<String, dynamic>?;
+                  final requestedItem = snapshots.data![1].data() as Map<String, dynamic>?;
+                  final otherUser = snapshots.data![2].data() as Map<String, dynamic>?;
 
-                return Card(
-                  margin: const EdgeInsets.all(8),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: const Color(0xFF1E3A8A),
-                              child: Text(
-                                (otherUser['name'] ?? 'U')[0].toUpperCase(),
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    otherUser['name'] ?? 'Unknown User',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  Text(
-                                    otherUser['city'] ?? 'Unknown Location',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(request['status']),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                request['status'] ?? 'Pending',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        const Divider(),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildItemCard(
-                                title: incoming ? 'Offered Item' : 'Your Item',
-                                item: offeredItem,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            const Icon(Icons.swap_horiz),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildItemCard(
-                                title: incoming ? 'Your Item' : 'Requested Item',
-                                item: requestedItem,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (incoming && request['status'] == 'pending')
-                          Padding(
-                            padding: const EdgeInsets.only(top: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton(
-                                  onPressed: () => _updateRequestStatus(
-                                    requests[index].id,
-                                    'rejected',
-                                  ),
-                                  child: const Text('Decline'),
-                                ),
-                                const SizedBox(width: 12),
-                                ElevatedButton(
-                                  onPressed: () => _updateRequestStatus(
-                                    requests[index].id,
-                                    'accepted',
-                                  ),
-                                  child: const Text('Accept'),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            );
+                  if (offeredItem == null || requestedItem == null || otherUser == null) {
+                    return const Card(
+                      margin: EdgeInsets.all(8),
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Text('Item or user not found'),
+                      ),
+                    );
+                  }
+
+                  if (offerType == 'combined') {
+                    return _buildCombinedOfferCard(
+                      request: request,
+                      requestId: requests[index].id,
+                      offeredItem: offeredItem,
+                      requestedItem: requestedItem,
+                      otherUser: otherUser,
+                      incoming: incoming,
+                    );
+                  } else {
+                    return _buildItemOfferCard(
+                      request: request,
+                      requestId: requests[index].id,
+                      offeredItem: offeredItem,
+                      requestedItem: requestedItem,
+                      otherUser: otherUser,
+                      incoming: incoming,
+                    );
+                  }
+                },
+              );
+            }
           },
         );
       },
     );
   }
 
-  Widget _buildItemCard({required String title, required Map<String, dynamic> item}) {
+  Widget _buildItemOfferCard({
+    required Map<String, dynamic> request,
+    required String requestId,
+    required Map<String, dynamic> offeredItem,
+    required Map<String, dynamic> requestedItem,
+    required Map<String, dynamic> otherUser,
+    required bool incoming,
+  }) {
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildUserHeader(otherUser, request['status']),
+            const SizedBox(height: 16),
+            const Text(
+              'Item Exchange Offer',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Color(0xFF1E3A8A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildItemCard(
+                    title: incoming ? 'Offered Item' : 'Your Item',
+                    item: offeredItem,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Icon(Icons.swap_horiz, color: Color(0xFF1E3A8A)),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildItemCard(
+                    title: incoming ? 'Your Item' : 'Requested Item',
+                    item: requestedItem,
+                  ),
+                ),
+              ],
+            ),
+            if (incoming && request['status'] == 'pending')
+              _buildActionButtons(requestId),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMoneyOfferCard({
+    required Map<String, dynamic> request,
+    required String requestId,
+    required Map<String, dynamic> requestedItem,
+    required Map<String, dynamic> otherUser,
+    required bool incoming,
+  }) {
+    final double offerAmount = (request['offerAmount'] ?? 0).toDouble();
+    
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildUserHeader(otherUser, request['status']),
+            const SizedBox(height: 16),
+            const Text(
+              'Money Offer',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Color(0xFF1E3A8A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        incoming ? 'Offer Amount' : 'Your Offer',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E3A8A).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.payments,
+                              size: 32,
+                              color: Color(0xFF1E3A8A),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '₹$offerAmount',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF1E3A8A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Icon(Icons.arrow_forward, color: Color(0xFF1E3A8A)),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildItemCard(
+                    title: incoming ? 'Your Item' : 'Requested Item',
+                    item: requestedItem,
+                  ),
+                ),
+              ],
+            ),
+            if (incoming && request['status'] == 'pending')
+              _buildActionButtons(requestId),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCombinedOfferCard({
+    required Map<String, dynamic> request,
+    required String requestId,
+    required Map<String, dynamic> offeredItem,
+    required Map<String, dynamic> requestedItem,
+    required Map<String, dynamic> otherUser,
+    required bool incoming,
+  }) {
+    final double offerAmount = (request['offerAmount'] ?? 0).toDouble();
+    
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildUserHeader(otherUser, request['status']),
+            const SizedBox(height: 16),
+            const Text(
+              'Item + Money Offer',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Color(0xFF1E3A8A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        incoming ? 'Offered Items' : 'Your Offer',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _buildItemCard(
+                        title: incoming ? 'Item' : 'Your Item',
+                        item: offeredItem,
+                        showTitle: false,
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey[300]!),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add, color: Color(0xFF1E3A8A)),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.payments, color: Color(0xFF1E3A8A)),
+                            const SizedBox(width: 8),
+                            Text(
+                              '₹$offerAmount',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Color(0xFF1E3A8A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Icon(Icons.swap_horiz, color: Color(0xFF1E3A8A)),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildItemCard(
+                    title: incoming ? 'Your Item' : 'Requested Item',
+                    item: requestedItem,
+                  ),
+                ),
+              ],
+            ),
+            if (incoming && request['status'] == 'pending')
+              _buildActionButtons(requestId),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserHeader(Map<String, dynamic> user, String? status) {
+    return Row(
+      children: [
+        CircleAvatar(
+          backgroundColor: const Color(0xFF1E3A8A),
+          child: Text(
+            (user['name'] ?? 'U')[0].toUpperCase(),
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                user['name'] ?? 'Unknown User',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              Text(
+                user['city'] ?? 'Unknown Location',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: _getStatusColor(status),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            status ?? 'Pending',
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemCard({
+    required String title,
+    required Map<String, dynamic> item,
+    bool showTitle = true,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: Colors.grey[600],
-            fontSize: 12,
+        if (showTitle)
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
+        if (showTitle)
+          const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey[300]!),
@@ -240,6 +506,8 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
                     Text(
                       item['item_name'] ?? 'Unknown Item',
                       style: const TextStyle(fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '₹${item['original_cost'] ?? 0}',
@@ -252,6 +520,32 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildActionButtons(String requestId) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: () => _updateRequestStatus(requestId, 'rejected'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Decline'),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: () => _updateRequestStatus(requestId, 'accepted'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E3A8A),
+            ),
+            child: const Text('Accept'),
+          ),
+        ],
+      ),
     );
   }
 

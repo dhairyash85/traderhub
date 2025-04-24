@@ -58,15 +58,21 @@ class ChatService {
   }
   
   // Get all chat rooms for current user
-  Stream<QuerySnapshot> getChatRooms() {
-    if (currentUserId == null) throw Exception("User not authenticated");
-    
-    return _firestore
-        .collection('chat_rooms')
-        .where('users', arrayContains: currentUserId)
-        .orderBy('lastMessageTimestamp', descending: true)
-        .snapshots();
+  // In your getChatRooms method in chat_service.dart:
+Stream<QuerySnapshot> getChatRooms() {
+  if (currentUserId == null) {
+    print('User not authenticated in getChatRooms');
+    throw Exception("User not authenticated");
   }
+  
+  print('Getting chat rooms for user: $currentUserId');
+  
+  return _firestore
+      .collection('chat_rooms')
+      .where('users', arrayContains: currentUserId)
+      .orderBy('lastMessageTimestamp', descending: true)
+      .snapshots();
+}
   
   // Get messages for a specific chat room
   Stream<QuerySnapshot> getMessages(String chatRoomId) {
@@ -79,15 +85,23 @@ class ChatService {
   }
   
   // Get user details by ID
-  Future<Map<String, dynamic>?> getUserDetails(String userId) async {
+  // In your getUserDetails method in chat_service.dart, add more null safety:
+Future<Map<String, dynamic>?> getUserDetails(String userId) async {
+  if (userId.isEmpty) return {'name': 'Unknown User'};
+  
+  try {
     DocumentSnapshot userDoc = await _firestore
         .collection('users')
         .doc(userId)
         .get();
         
-    if (userDoc.exists) {
+    if (userDoc.exists && userDoc.data() != null) {
       return userDoc.data() as Map<String, dynamic>;
     }
-    return null;
+    return {'name': 'Unknown User'};
+  } catch (e) {
+    print('Error fetching user details: $e');
+    return {'name': 'Unknown User'};
   }
+}
 }

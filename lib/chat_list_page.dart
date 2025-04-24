@@ -14,7 +14,7 @@ class ChatListPage extends StatefulWidget {
 class _ChatListPageState extends State<ChatListPage> {
   final ChatService _chatService = ChatService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -28,19 +28,20 @@ class _ChatListPageState extends State<ChatListPage> {
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-          
+
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          
+
           final chatRooms = snapshot.data?.docs ?? [];
-          
+
           if (chatRooms.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[400]),
+                  Icon(Icons.chat_bubble_outline,
+                      size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     "No conversations yet",
@@ -62,23 +63,27 @@ class _ChatListPageState extends State<ChatListPage> {
               ),
             );
           }
-          
+
           return ListView.builder(
             itemCount: chatRooms.length,
             itemBuilder: (context, index) {
               final chatRoom = chatRooms[index].data() as Map<String, dynamic>;
               final users = chatRoom['users'] as List<dynamic>;
-              
+
               // Get the other user's ID
               final otherUserId = users.firstWhere(
                 (userId) => userId != _auth.currentUser?.uid,
-                orElse: () => null,
+                orElse: () => '',
               );
-              
+
+              if (otherUserId.isEmpty) {
+                return const SizedBox.shrink();
+              }
+
               if (otherUserId == null) {
                 return const SizedBox.shrink();
               }
-              
+
               return FutureBuilder<Map<String, dynamic>?>(
                 future: _chatService.getUserDetails(otherUserId),
                 builder: (context, userSnapshot) {
@@ -91,11 +96,12 @@ class _ChatListPageState extends State<ChatListPage> {
                       title: Text('Loading...'),
                     );
                   }
-                  
+
                   final userData = userSnapshot.data!;
                   final userName = userData['name'] ?? 'Unknown User';
-                  final lastMessage = chatRoom['lastMessage'] ?? 'No messages yet';
-                  
+                  final lastMessage =
+                      chatRoom['lastMessage'] ?? 'No messages yet';
+
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor: const Color(0xFF1E3A8A),

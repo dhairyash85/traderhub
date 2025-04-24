@@ -24,7 +24,7 @@ class _ChatPageState extends State<ChatPage> {
   final ChatService _chatService = ChatService();
   final TextEditingController _messageController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,19 +42,20 @@ class _ChatPageState extends State<ChatPage> {
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
-                
+
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                
+
                 final messages = snapshot.data?.docs ?? [];
-                
+
                 if (messages.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.chat_bubble_outline, size: 80, color: Colors.grey[300]),
+                        Icon(Icons.chat_bubble_outline,
+                            size: 80, color: Colors.grey[300]),
                         const SizedBox(height: 16),
                         Text(
                           "No messages yet",
@@ -75,25 +76,29 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   );
                 }
-                
+
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: messages.length,
                   itemBuilder: (context, index) {
-                    final message = messages[index].data() as Map<String, dynamic>;
+                    final message =
+                        messages[index].data() as Map<String, dynamic>;
                     final isMe = message['senderId'] == _auth.currentUser?.uid;
                     final timestamp = message['timestamp'] as Timestamp?;
                     final time = timestamp != null
-                        ? (timestamp.toDate())
-                        : '';
-                    
+                        ? DateFormat('HH:mm').format(timestamp.toDate())
+                        : 'Unknown time';
+
                     return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                      alignment:
+                          isMe ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
                         margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isMe ? const Color(0xFF1E3A8A) : Colors.grey[200],
+                          color:
+                              isMe ? const Color(0xFF1E3A8A) : Colors.grey[200],
                           borderRadius: BorderRadius.circular(20),
                         ),
                         constraints: BoxConstraints(
@@ -126,7 +131,7 @@ class _ChatPageState extends State<ChatPage> {
               },
             ),
           ),
-          
+
           // Message input
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -176,13 +181,13 @@ class _ChatPageState extends State<ChatPage> {
       ),
     );
   }
-  
+
   void _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
-    
+
     _messageController.clear();
-    
+
     try {
       await _chatService.sendMessage(widget.chatRoomId, message);
     } catch (e) {

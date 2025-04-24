@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'profile_page.dart';
+import 'chat_list_page.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
@@ -14,7 +15,8 @@ class _MainScreenState extends State<MainScreen> {
 
   // List of pages
   final List<Widget> _pages = [
-    HomePage(),   // Home
+    const HomePage(),   // Home
+    const ChatListPage(), // Messages
     const ProfilePage() // Profile
   ];
 
@@ -29,12 +31,13 @@ class _MainScreenState extends State<MainScreen> {
     return Scaffold(
       body: _pages[_selectedIndex],  // Show selected page
 
-      // ✅ Bottom Navigation Bar (Appears on all pages inside MainScreen)
+      // Bottom Navigation Bar with Messages tab
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Messages'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),

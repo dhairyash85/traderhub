@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:traderhub/services/chat_service.dart';
 
 class ProductDetailPage extends StatelessWidget {
   final Map<String, dynamic> product;
@@ -215,6 +216,7 @@ class ProductDetailPage extends StatelessWidget {
         ),
       );
     }
+
     Future<Map<String, dynamic>?> _selectItemFromInventory(
         BuildContext context) async {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -285,6 +287,7 @@ class ProductDetailPage extends StatelessWidget {
 
       return result;
     }
+
     Future<void> _showCombinedOfferDialog(BuildContext context) async {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;
@@ -685,15 +688,47 @@ class ProductDetailPage extends StatelessWidget {
           child: Row(
             children: [
               // Chat button
+              // Chat button
+              // Chat button
               Expanded(
                 flex: 1,
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    // Navigate to chat page with this seller
-                    Navigator.pushNamed(context, '/chat', arguments: {
-                      'userId': product['userId'],
-                      'userName': product['user']
-                    });
+                  onPressed: () async {
+                    // First, make sure we have a valid user ID
+                    final sellerId = product['userId'];
+                    if (sellerId == null || sellerId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                'Cannot start chat: Seller information is missing')),
+                      );
+                      return;
+                    }
+
+                    // Create a chat room
+                    final chatService = ChatService();
+                    try {
+                      // Create or get the chat room ID
+                      final chatRoomId =
+                          await chatService.createChatRoom(sellerId);
+
+                      // Make sure chatRoomId is not empty
+                      if (chatRoomId.isEmpty) {
+                        throw Exception("Failed to create chat room");
+                      }
+
+                      // Navigate to chat page with proper parameters
+                      Navigator.pushNamed(context, '/chat', arguments: {
+                        'chatRoomId': chatRoomId,
+                        'userId': sellerId,
+                        'userName': product['user'] ?? 'User'
+                      });
+                    } catch (e) {
+                      print('Chat error: $e'); // Print to console for debugging
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error starting chat: $e')),
+                      );
+                    }
                   },
                   icon: const Icon(Icons.chat_bubble_outline),
                   label: const Text("Chat"),
