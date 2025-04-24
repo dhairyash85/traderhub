@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'chat_page.dart';
+import 'services/chat_service.dart';
 
 class YourRequestsPage extends StatefulWidget {
   const YourRequestsPage({Key? key}) : super(key: key);
@@ -12,6 +14,7 @@ class YourRequestsPage extends StatefulWidget {
 class _YourRequestsPageState extends State<YourRequestsPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ChatService _chatService = ChatService();
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +107,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
                     requestId: requests[index].id,
                     requestedItem: requestedItem,
                     otherUser: otherUser,
+                    otherUserId: incoming ? request['senderId'] : request['receiverId'],
                     incoming: incoming,
                   );
                 },
@@ -149,6 +153,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
                       offeredItem: offeredItem,
                       requestedItem: requestedItem,
                       otherUser: otherUser,
+                      otherUserId: incoming ? request['senderId'] : request['receiverId'],
                       incoming: incoming,
                     );
                   } else {
@@ -158,6 +163,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
                       offeredItem: offeredItem,
                       requestedItem: requestedItem,
                       otherUser: otherUser,
+                      otherUserId: incoming ? request['senderId'] : request['receiverId'],
                       incoming: incoming,
                     );
                   }
@@ -176,6 +182,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
     required Map<String, dynamic> offeredItem,
     required Map<String, dynamic> requestedItem,
     required Map<String, dynamic> otherUser,
+    required String otherUserId,
     required bool incoming,
   }) {
     return Card(
@@ -185,7 +192,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildUserHeader(otherUser, request['status']),
+            _buildUserHeader(otherUser, request['status'], otherUserId),
             const SizedBox(height: 16),
             const Text(
               'Item Exchange Offer',
@@ -218,7 +225,9 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
               ],
             ),
             if (incoming && request['status'] == 'pending')
-              _buildActionButtons(requestId),
+              _buildActionButtons(requestId, otherUserId, otherUser['name'] ?? 'Unknown User'),
+            if (!incoming || request['status'] != 'pending')
+              _buildChatButton(otherUserId, otherUser['name'] ?? 'Unknown User'),
           ],
         ),
       ),
@@ -230,6 +239,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
     required String requestId,
     required Map<String, dynamic> requestedItem,
     required Map<String, dynamic> otherUser,
+    required String otherUserId,
     required bool incoming,
   }) {
     final double offerAmount = (request['offerAmount'] ?? 0).toDouble();
@@ -241,7 +251,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildUserHeader(otherUser, request['status']),
+            _buildUserHeader(otherUser, request['status'], otherUserId),
             const SizedBox(height: 16),
             const Text(
               'Money Offer',
@@ -308,7 +318,9 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
               ],
             ),
             if (incoming && request['status'] == 'pending')
-              _buildActionButtons(requestId),
+              _buildActionButtons(requestId, otherUserId, otherUser['name'] ?? 'Unknown User'),
+            if (!incoming || request['status'] != 'pending')
+              _buildChatButton(otherUserId, otherUser['name'] ?? 'Unknown User'),
           ],
         ),
       ),
@@ -321,6 +333,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
     required Map<String, dynamic> offeredItem,
     required Map<String, dynamic> requestedItem,
     required Map<String, dynamic> otherUser,
+    required String otherUserId,
     required bool incoming,
   }) {
     final double offerAmount = (request['offerAmount'] ?? 0).toDouble();
@@ -332,7 +345,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildUserHeader(otherUser, request['status']),
+            _buildUserHeader(otherUser, request['status'], otherUserId),
             const SizedBox(height: 16),
             const Text(
               'Item + Money Offer',
@@ -366,7 +379,7 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
                       ),
                       const SizedBox(height: 8),
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(3),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey[300]!),
                           borderRadius: BorderRadius.circular(8),
@@ -403,14 +416,16 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
               ],
             ),
             if (incoming && request['status'] == 'pending')
-              _buildActionButtons(requestId),
+              _buildActionButtons(requestId, otherUserId, otherUser['name'] ?? 'Unknown User'),
+            if (!incoming || request['status'] != 'pending')
+              _buildChatButton(otherUserId, otherUser['name'] ?? 'Unknown User'),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildUserHeader(Map<String, dynamic> user, String? status) {
+  Widget _buildUserHeader(Map<String, dynamic> user, String? status, String userId) {
     return Row(
       children: [
         CircleAvatar(
@@ -523,28 +538,57 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
     );
   }
 
-  Widget _buildActionButtons(String requestId) {
+  Widget _buildActionButtons(String requestId, String otherUserId, String otherUserName) {
     return Padding(
       padding: const EdgeInsets.only(top: 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          TextButton(
-            onPressed: () => _updateRequestStatus(requestId, 'rejected'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
+          OutlinedButton.icon(
+            icon: const Icon(Icons.chat),
+            label: const Text('Chat'),
+            onPressed: () => _navigateToChat(otherUserId, otherUserName),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF1E3A8A),
             ),
-            child: const Text('Decline'),
           ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () => _updateRequestStatus(requestId, 'accepted'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1E3A8A),
-            ),
-            child: const Text('Accept'),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () => _updateRequestStatus(requestId, 'rejected'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.red,
+                ),
+                child: const Text('Decline'),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () => _updateRequestStatus(requestId, 'accepted'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1E3A8A),
+                ),
+                child: const Text('Accept'),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildChatButton(String otherUserId, String otherUserName) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: SizedBox(
+        width: double.infinity,
+        child: ElevatedButton.icon(
+          icon: const Icon(Icons.chat),
+          label: const Text('Chat with Trader'),
+          onPressed: () => _navigateToChat(otherUserId, otherUserName),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1E3A8A),
+          ),
+        ),
       ),
     );
   }
@@ -565,5 +609,32 @@ class _YourRequestsPageState extends State<YourRequestsPage> {
       'status': status,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> _navigateToChat(String otherUserId, String otherUserName) async {
+    try {
+      // Get the current user ID
+      final currentUserId = _auth.currentUser?.uid;
+      if (currentUserId == null) return;
+
+      // Create or get existing chat room
+      final chatRoomId = await _chatService.createChatRoom(otherUserId);
+      
+      // Navigate to chat page
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ChatPage(
+            chatRoomId: chatRoomId,
+            otherUserId: otherUserId,
+            otherUserName: otherUserName,
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error opening chat: $e')),
+      );
+    }
   }
 }
